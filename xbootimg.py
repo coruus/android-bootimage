@@ -1,8 +1,14 @@
+"""Splits an Android boot.img into its various parts.
+
+   You can put it back together using `cat`.
+"""
 from __future__ import division, print_function
 
-from construct import *
+import sys
 
-boot_img_hdr = Struct("boot_img_hdr",
+from construct import Array, Bytes, ULInt32, Struct
+
+_BOOTIMGHDR = Struct("boot_img_hdr",
                       Bytes("magic", 8),
                       ULInt32("kernel_size"),
                       ULInt32("kernel_addr"),
@@ -18,39 +24,39 @@ boot_img_hdr = Struct("boot_img_hdr",
                       Array(8, ULInt32("id")),
                       Bytes("extra_cmdline", 1024))
 
+_HEADERLEN = _BOOTIMGHDR.sizeof()
 
-filename = "BOOT.img"
-s = open(filename, 'rb').read()
+_OUT = "{filename}_{start:08x}-{end:08x}.{name}"
 
-h = (boot_img_hdr.parse(s))
 
-page_size = h.page_size
+def extract_bootimg(filename):
+    """Extract an Android boot image."""
+    s = open(filename, 'rb').read()
+    h = (_BOOTIMGHDR.parse(s))
 
-n = (h.kernel_size + page_size - 1) // page_size
-m = (h.ramdisk_size + page_size - 1) // page_size
-o = (h.second_size + page_size - 1) // page_size
-pages = 1 + n + m + o
+    page_size = h.page_size
 
-with open(filename + '.header', 'wb') as f:
-    f.write(s[:boot_img_hdr.sizeof()])
-with open(filename + '.headerpad', 'wb') as f:
-    f.write(s[boot_img_hdr.sizeof():page_size])
+    n = (h.kernel_size + page_size - 1) // page_size
+    m = (h.ramdisk_size + page_size - 1) // page_size
+    o = (h.second_size + page_size - 1) // page_size
+    #pages = 1 + n + m + o
 
-kernelpages = s[1 * page_size:(1 + n) * page_size]
-with open(filename + '.kernel', 'wb') as f:
-    f.write(kernelpages[:h.kernel_size])
-with open(filename + '.kernelpad', 'wb') as f:
-    f.write(kernelpages[h.kernel_size:])
+    PARTS = [('header', (0, _HEADERLEN)),
+             ('kernel', (1, h.kernel_size)),
+             ('ramdisk', (1 + n, h.ramdisk_size)),
+             ('second', (1 + n + m, h.second_size))]
 
-secondpages = s[(1 + n + m) * page_size:]
-with open(filename + '.second', 'wb') as f:
-    f.write(secondpages[:h.second_size])
-with open(filename + '.secondpad', 'wb') as f:
-    f.write(secondpages[h.second_size:])
+    end = 0
+    for name, (page, size) in PARTS:
+        start = page * page_size
+        if start > end:
+            outname = _OUT.format(start=end, end=start, filename=filename, name='pad')
+            with open(outname, 'wb') as f:
+                f.write(s[end:start])
+        end = start + size
+        outname = _OUT.format(start=start, end=end, filename=filename, name=name)
+        with open(outname, 'wb') as f:
+            f.write(s[start:end])
 
-ramdiskpages = s[(1 + n) * page_size:(1 + n + m) * page_size]
-with open(filename + '.ramdisk', 'wb') as f:
-    f.write(ramdiskpages[:h.ramdisk_size])
-with open(filename + '.ramdiskpad', 'wb') as f:
-    f.write(ramdiskpages[h.ramdisk_size:])
-
+if __name__ == '__main__':
+    extract_bootimg(sys.argv[1])
