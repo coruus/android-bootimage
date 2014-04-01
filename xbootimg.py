@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Splits an Android boot.img into its various parts.
 
    You can put it back together using `cat`.
@@ -39,12 +40,12 @@ def extract_bootimg(filename):
     n = (h.kernel_size + page_size - 1) // page_size
     m = (h.ramdisk_size + page_size - 1) // page_size
     o = (h.second_size + page_size - 1) // page_size
-    #pages = 1 + n + m + o
+    pages = 1 + n + m + o
 
-    PARTS = [('header', (0, _HEADERLEN)),
-             ('kernel', (1, h.kernel_size)),
+    PARTS = [('header',  (0, _HEADERLEN)),
+             ('kernel',  (1, h.kernel_size)),
              ('ramdisk', (1 + n, h.ramdisk_size)),
-             ('second', (1 + n + m, h.second_size))]
+             ('second',  (1 + n + m, h.second_size))]
 
     end = 0
     for name, (page, size) in PARTS:
@@ -57,6 +58,10 @@ def extract_bootimg(filename):
         outname = _OUT.format(start=start, end=end, filename=filename, name=name)
         with open(outname, 'wb') as f:
             f.write(s[start:end])
+    if end < len(s):
+        outname = _OUT.format(start=end, end=len(s), filename=filename, name='fin')
+        with open(outname, 'wb') as f:
+            f.write(s[end:])
 
 if __name__ == '__main__':
     extract_bootimg(sys.argv[1])
