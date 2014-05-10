@@ -1,7 +1,8 @@
 # Correct and reversible splitting of Android boot images
 
 A very minimal Python script to correctly split Android boot images
-so that they can be modified an put back together again.
+so that they can be modified, put back together again, and still
+work.
 
 (It also dumps some header data to a YAML file.)
 
