@@ -8,6 +8,7 @@ from __future__ import division, print_function
 import sys
 
 from construct import Array, Bytes, ULInt32, Struct
+import yaml
 
 _BOOTIMGHDR = Struct("boot_img_hdr",
                       Bytes("magic", 8),
@@ -30,6 +31,15 @@ _HEADERLEN = _BOOTIMGHDR.sizeof()
 _OUT = "{filename}_{start:08x}-{end:08x}.{name}"
 
 
+def header_to_yaml(filename):
+    with open(filename, 'rb') as f:
+        s = f.read(_HEADERLEN)
+    h = _BOOTIMGHDR.parse(s)
+    fields = 'name,kernel_size,kernel_addr,ramdisk_size,ramdisk_addr,second_size,second_addr,tags_addr,cmdline,extra_cmdline'
+    with open(filename + '.header.yaml', 'wb') as f:
+        f.write(yaml.dump(dict([(k, h[k]) for k in fields.split(',')]), default_flow_style=False))
+
+
 def extract_bootimg(filename):
     """Extract an Android boot image."""
     s = open(filename, 'rb').read()
@@ -47,6 +57,8 @@ def extract_bootimg(filename):
              ('ramdisk', (1 + n, h.ramdisk_size)),
              ('second',  (1 + n + m, h.second_size))]
 
+    # Write the header, kernel, ramdisk, and second stages,
+    # as well as the material between them.
     end = 0
     for name, (page, size) in PARTS:
         start = page * page_size
@@ -58,6 +70,7 @@ def extract_bootimg(filename):
         outname = _OUT.format(start=start, end=end, filename=filename, name=name)
         with open(outname, 'wb') as f:
             f.write(s[start:end])
+    # Write the part after the second stage.
     if end < len(s):
         outname = _OUT.format(start=end, end=len(s), filename=filename, name='fin')
         with open(outname, 'wb') as f:
@@ -65,3 +78,4 @@ def extract_bootimg(filename):
 
 if __name__ == '__main__':
     extract_bootimg(sys.argv[1])
+    header_to_yaml(sys.argv[1])

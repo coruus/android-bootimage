@@ -3,6 +3,8 @@
 A very minimal Python script to correctly split Android boot images
 so that they can be modified an put back together again.
 
+(It also dumps some header data to a YAML file.)
+
 It has none of the fancy features of `abootimg` at the moment. Its
 sole virtue is that it is possible to put its output back together
 again.
@@ -20,7 +22,9 @@ Put it back together:
 
     cat BOOT.img_* > BOOT2.img
 
-Do, e.g., `ls -l | colrm 1 25 | colrm 9 21`:
+Do, e.g.,
+
+     % ls -l | colrm 1 25 | colrm 9 21
 
      8388608 BOOT.img
         1632 BOOT.img_00000000-00000660.header
